@@ -129,9 +129,11 @@ class Drive():
         Enable the output of the servo controller.  The telescope will start
         driving if a non-zero speed has been set (see set_speed)
         """
-        self.logger.info("Drive activated")
         self.d.getFeedback(u3.BitStateWrite(4,1))
+        self.logger.info("Driver power enabled.")
+        # Wait for the server to be able to take commands.
         time.sleep(10)
+        self.logger.info("Drive activated")
         return self.sendstr(['A09']) #set pin 9 high
 
         
@@ -199,8 +201,10 @@ class Drive():
             status_str = '0000000000000'
         # The netiom reports the lowest bit (bit 1) first, so we have to
         # reverse the string
+        s2 = ''
+        for i in range(0,13): s2 += status_str[12-i]
         # now turn it into a graycode base 10 integer
-        gray = int(status_str[::-1], base=2)
+        gray = int(str2, base=2)
         # ... and find the content of this element in grayindex (removing the
         # trailing ".0\n".  Also, convert to degrees
         position = self.grayindex[gray][:-3]
