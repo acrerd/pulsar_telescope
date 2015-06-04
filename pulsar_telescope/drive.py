@@ -39,9 +39,12 @@ class Drive():
                  simulate=0,
                  logfile=None,
                  url='http://192.168.0.6/',
-                 observatory=Acre_Road
+                 observatory=Acre_Road,
+                 hhoffset=0
              ):
-            
+
+        # Physical properties of the drive
+        self.hhoffset=hhoffset
         # Set up debugging and simulation
         self.logger = logging.getLogger('PT.Drive')
         self.switch_simulate(simulate)
@@ -261,6 +264,7 @@ class Drive():
         Slews the telescope to the requested hour angle.
         """
 
+        hh = hh + self.hhoffset
         self.enable()
         diff,speed = self.diff(hh)
         #if diff>0.2: self.enable()
