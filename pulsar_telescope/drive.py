@@ -38,6 +38,7 @@ class Drive():
                  debug=0,
                  simulate=0,
                  logfile=None,
+                 url='http://192.168.0.6/',
                  observatory=Acre_Road
              ):
             
@@ -46,7 +47,7 @@ class Drive():
         self.switch_simulate(simulate)
         # Configuration information
         # this should probably be moved to its own file!
-        self.url = "http://192.168.0.6/"
+        self.url = url
         self.east_stop = -110 # mechanically is -117.0
         self.west_stop = 110  # mechanically is 112
         # Load in the gray codes
@@ -250,7 +251,6 @@ class Drive():
         diff,speed = self.diff(hh)
         if diff>0.2: self.enable()
         while diff>0.2:
-            speed = sign*(diff/360)**(0.25)
             self.set_speed(speed)
             diff,speed = self.diff(hh)
         self.disable()
