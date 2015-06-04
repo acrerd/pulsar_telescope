@@ -52,7 +52,7 @@ class Drive():
         # Load in the gray codes
         grayfile = os.path.join(os.path.dirname(__file__), 'graycode.txt')
         graycodefile = open(grayfile, 'r')
-        grayindex = graycodefile.readlines()
+        self.grayindex = graycodefile.readlines()
         graycodefile.close()
 
         
