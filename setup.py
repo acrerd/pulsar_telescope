@@ -36,7 +36,7 @@ setup(
     ],
     package_data={
         '': ['pulsar_telescope/graycode.txt']
-    }
+    },
     package_dir={'pulsar_telescope':
                  'pulsar_telescope'},
     include_package_data=True,
