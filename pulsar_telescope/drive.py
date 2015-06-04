@@ -143,9 +143,10 @@ class Drive():
         driving. Alway disable the drive when not intending to drive to prevent
         creep and to remove any residual current in the motor.
         """
-        self.logger.info("Drive deactivated")
+        self.sendstr(['B09']) #set pin 9 low
         self.d.getFeedback(u3.BitStateWrite(4,0))
-        return self.sendstr(['B09']) #set pin 9 low
+        self.logger.info("Drive deactivated")
+        return 0
         
     def set_speed(self, v):
         """
