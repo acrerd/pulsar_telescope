@@ -204,7 +204,7 @@ class Drive():
         s2 = ''
         for i in range(0,13): s2 += status_str[12-i]
         # now turn it into a graycode base 10 integer
-        gray = int(str2, base=2)
+        gray = int(s2, base=2)
         # ... and find the content of this element in grayindex (removing the
         # trailing ".0\n".  Also, convert to degrees
         position = self.grayindex[gray][:-3]
