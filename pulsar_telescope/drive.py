@@ -15,7 +15,7 @@ This sub-module contains the following classes:
 
 
 """
-import urllib, ephem, time, math, logging, sys, os
+import urllib, ephem, time, math, logging, sys, os, u3
 
 
 # Details of Acre Road observatory
@@ -55,6 +55,11 @@ class Drive():
         graycodefile = open(grayfile, 'r')
         self.grayindex = graycodefile.readlines()
         graycodefile.close()
+        # Contol of the drive's power supply is done by labjack
+        self.d = u3.U3()
+        self.d.configIO(FIOAnalog=15) # set the first four to analogue rest digital
+        self.d.getFeedback(u3.BitDirWrite(4,1)) #Set FI04 to output
+        self.d.getFeedback(u3.BitStateWrite(4,1)) #Set FI04 high
 
         
     def sendstr(self, stringlist):
@@ -125,6 +130,8 @@ class Drive():
         driving if a non-zero speed has been set (see set_speed)
         """
         self.logger.info("Drive activated")
+        self.d.getFeedback(u3.BitStateWrite(4,1))
+        time.sleep(10)
         return self.sendstr(['A09']) #set pin 9 high
 
         
@@ -135,6 +142,7 @@ class Drive():
         creep and to remove any residual current in the motor.
         """
         self.logger.info("Drive deactivated")
+        self.d.getFeedback(u3.BitStateWrite(4,0))
         return self.sendstr(['B09']) #set pin 9 low
         
     def set_speed(self, v):
