@@ -261,7 +261,7 @@ class Drive():
         Slews the telescope to the requested hour angle.
         """
 
-        self.enable
+        self.enable()
         diff,speed = self.diff(hh)
         #if diff>0.2: self.enable()
         while diff>0.2:
