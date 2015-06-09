@@ -32,6 +32,7 @@ class Drive():
     """
 
     simulate = 0
+    visible = 0
     url = ""
     position = [0,0]
 
@@ -297,6 +298,19 @@ class Drive():
         Returns a vector containing the poisition of the telescope.
         """
         return self.position
+
+    def visiblity(sel, ra):
+        """
+        Returns a 1 if the hour angle is in the visibility of the telescope.
+        """
+        self.observatory.date = ephem.now()
+        ra = ephem.hours(ra)
+        hh = math.pi*(pos_degree/180)
+        hh = (self.observatory.sidereal_time() - ra)/math.pi * 180.0
+        if east_stop > hh > west_stop:
+            return 0
+        else:
+            return 1
 
 
 class Track():
