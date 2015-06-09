@@ -223,9 +223,9 @@ class Drive():
             pos_degree -= 360.0
 
         self.logger.info("Position is {0}".format(pos_degree))
-        observatory.date = ephem.now()
+        self.observatory.date = ephem.now()
         hh = math.pi*(pos_degree/180)
-        ra = observatory.sidereal_time() + hh
+        ra = self.observatory.sidereal_time() + hh
         self.position = [ephem.hours(ra), ephem.degrees(0)]
         
         return pos_degree
