@@ -306,6 +306,7 @@ class Drive():
             self.set_speed(speed)
             diff,speed = self.diff(hh)
         self.disable()
+        return hh    
         
     def park(self):
         """
