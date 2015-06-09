@@ -222,6 +222,7 @@ class Drive():
         # trailing ".0\n".  Also, convert to degrees
         position = self.grayindex[gray][:-3]
         pos_degree = int(float(position))*360.0/8192.0
+        pos_degree -= self.hhoffset
         if pos_degree >180.0:
             pos_degree -= 360.0
 
@@ -278,7 +279,26 @@ class Drive():
         Slews the telescope to the requested hour angle.
         """
 
-        hh = hh + self.hhoffset
+        hh = hh
+        self.enable()
+        diff,speed = self.diff(hh)
+        #if diff>0.2: self.enable()
+        while diff>0.2:
+            self.set_speed(speed)
+            diff,speed = self.diff(hh)
+            self.disable()
+
+    def slew_ra(self, ra):
+        """
+        Slews the telescope to the requested RA.
+        """
+
+        ra = ephem.hours(ra)
+        hh = ((self.observatory.sidereal_time() - ra )/math.pi * 180.0)
+        if hh > 180.0:
+            hh = hh-360.0
+        if hh < -180.0:
+            hh = hh+360.0
         self.enable()
         diff,speed = self.diff(hh)
         #if diff>0.2: self.enable()
@@ -310,7 +330,6 @@ class Drive():
             hh = hh-360.0
         if hh < -180.0:
             hh = hh+360.0
-        print hh
         if self.east_stop < hh < self.west_stop:
             return 1
         else:
