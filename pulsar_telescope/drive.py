@@ -15,7 +15,7 @@ This sub-module contains the following classes:
 
 
 """
-import urllib, ephem, time, math, logging, sys, os, u3
+import urllib, ephem, time, math, logging, sys, os
 
 
 # Details of Acre Road observatory
@@ -59,11 +59,13 @@ class Drive():
         graycodefile = open(grayfile, 'r')
         self.grayindex = graycodefile.readlines()
         graycodefile.close()
-        # Contol of the drive's power supply is done by labjack
-        self.d = u3.U3()
-        self.d.configIO(FIOAnalog=15) # set the first four to analogue rest digital
-        self.d.getFeedback(u3.BitDirWrite(4,1)) #Set FI04 to output
-        self.d.getFeedback(u3.BitStateWrite(4,1)) #Set FI04 high
+        if simulate == 0 :
+            import u3
+            # Contol of the drive's power supply is done by labjack
+            self.d = u3.U3()
+            self.d.configIO(FIOAnalog=15) # set the first four to analogue rest digital
+            self.d.getFeedback(u3.BitDirWrite(4,1)) #Set FI04 to output
+            self.d.getFeedback(u3.BitStateWrite(4,1)) #Set FI04 high
 
         
     def sendstr(self, stringlist):
@@ -133,6 +135,7 @@ class Drive():
         Enable the output of the servo controller.  The telescope will start
         driving if a non-zero speed has been set (see set_speed)
         """
+        if self.simulate: return 1
         self.d.getFeedback(u3.BitStateWrite(4,1))
         self.logger.info("Driver power enabled.")
         # Wait for the server to be able to take commands.
@@ -147,6 +150,7 @@ class Drive():
         driving. Alway disable the drive when not intending to drive to prevent
         creep and to remove any residual current in the motor.
         """
+        if self.simulate: return 1
         self.sendstr(['B09']) #set pin 9 low
         self.d.getFeedback(u3.BitStateWrite(4,0))
         self.logger.info("Drive deactivated")
