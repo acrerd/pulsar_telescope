@@ -230,7 +230,7 @@ class Drive():
         hh = math.pi*(pos_degree/180)
         ra = self.observatory.sidereal_time() + hh
         self.position = [ephem.hours(ra), ephem.degrees(0)]
-        
+        self.pos_degree = pos_degree
         return pos_degree
 
     def motor(self):
@@ -305,7 +305,6 @@ class Drive():
         """
         self.observatory.date = ephem.now()
         ra = ephem.hours(ra)
-        hh = math.pi*(pos_degree/180)
         hh = (self.observatory.sidereal_time() - ra)/math.pi * 180.0
         if east_stop > hh > west_stop:
             return 0
