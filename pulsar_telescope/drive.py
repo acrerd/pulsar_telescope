@@ -305,7 +305,11 @@ class Drive():
         """
         self.observatory.date = ephem.now()
         ra = ephem.hours(ra)
-        hh = ((self.observatory.sidereal_time() - ra)/math.pi * 180.0)-180
+        hh = ((self.observatory.sidereal_time() - ra )/math.pi * 180.0)
+        if hh > 180.0:
+            hh = hh-360.0
+        if hh < -180.0:
+            hh = hh+360.0
         print hh
         if self.east_stop < hh < self.west_stop:
             return 1
