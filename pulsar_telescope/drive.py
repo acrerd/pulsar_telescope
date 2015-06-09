@@ -299,14 +299,14 @@ class Drive():
         """
         return self.position
 
-    def visiblity(self, ra):
+    def visibility(self, ra):
         """
         Returns a 1 if the hour angle is in the visibility of the telescope.
         """
         self.observatory.date = ephem.now()
         ra = ephem.hours(ra)
         hh = (self.observatory.sidereal_time() - ra)/math.pi * 180.0
-        if east_stop > hh > west_stop:
+        if self.east_stop > hh > self.west_stop:
             return 0
         else:
             return 1
