@@ -33,6 +33,7 @@ class Drive():
 
     simulate = 0
     url = ""
+    position = [0,0]
 
     def __init__(self,
                  debug=0,
@@ -194,6 +195,7 @@ class Drive():
         
         if self.simulate:
             self.logger.warning("The module cannot read positions in simulation mode.")
+            self.position = [0, 0]
             return 0
 
         try:
@@ -217,6 +219,11 @@ class Drive():
             pos_degree -= 360.0
 
         self.logger.info("Position is {0}".format(pos_degree))
+        observatory.date = ephem.now()
+        hh = math.pi*(pos_degree/180)
+        ra = observatory.sidereal_time() + hh
+        self.position = [ephem.hours(ra), ephem.degrees(0)]
+        
         return pos_degree
 
     def motor(self):
@@ -279,17 +286,28 @@ class Drive():
         """
         self.slew(0)
 
+    def radec(self):
+        """
+        Returns a vector containing the poisition of the telescope.
+        """
+        return self.position
+
 
 class Track():
-    def __init__(drive, observatory, object):
+    def __init__(drive, observatory, source):
 
         # Observatory
         self.observatory = observatory
+        self.source = source
         
-    def hour_angle(self, source):
+    def hour_angle(self):
         observatory.date = ephem.now()
-        source.compute(observatory)
-        hh = (observatory.sidereal_time() - source.ra)/math.pi*180.0
+        self.source.compute(observatory)
+        hh = (observatory.sidereal_time() - self.source.ra)/math.pi*180.0
         return hh
 
-    
+    def track(self,pausetime=600, driveahead=True):
+        if east_stop > self.hour_angle > west_stop:
+            drive.park()
+            logging.info("The source has moved out of the observable area.")
+        
