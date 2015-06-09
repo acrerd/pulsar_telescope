@@ -49,6 +49,8 @@ class Drive():
         # Set up debugging and simulation
         self.logger = logging.getLogger('PT.Drive')
         self.switch_simulate(simulate)
+        # Observatory information
+        self.observatory = observatory
         # Configuration information
         # this should probably be moved to its own file!
         self.url = url
