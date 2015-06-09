@@ -299,7 +299,7 @@ class Drive():
         """
         return self.position
 
-    def visiblity(sel, ra):
+    def visiblity(self, ra):
         """
         Returns a 1 if the hour angle is in the visibility of the telescope.
         """
