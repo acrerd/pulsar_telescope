@@ -20,10 +20,13 @@ from astropy.time import Time
 #import astropysics
 #import astropysics.coords
 
+from copy import copy, deepcopy
+
 import pmt
 from gnuradio.blocks import parse_file_metadata
 import pandas as pd
 from functools import partial
+import os.path
 
 # Details of Acre Road observatory
 Acre_Road = ephem.Observer()
@@ -51,6 +54,8 @@ class TimeSeries(Lightcurve):
         
         # Load the meta data, and detect any overruns
         meta, overs = self.parse_metadata(filepath)
+
+        self.overs = overs
         
         filename = os.path.split(filepath)[-1]
         if 'rx_rate' in meta['total power']:
@@ -68,27 +73,29 @@ class TimeSeries(Lightcurve):
                 rx = meta['total power']['rx_time']
                 gpstime = Time(rx, format='unix').gps
         else:
-            gpstime = float(filename.split("-")[0])
+            gpstime = np.float64(filename.split("-")[0])
                                             
         self.start = gpstime
+        self.start_t = Time(self.start, format='gps')    
+            
+        if len(overs) > 0:
+            first, first_t = np.float64(0), np.float64(0)
+            times = np.array([])
+            for over in overs:
+                new, new_t = over['new_seg'], over['new_time']
+                seg_len = new - first
+                segment = np.linspace(first_t, first_t + new/np.float64(self.samp_rate), seg_len)
+                times = np.append(times, segment)
+                first, first_t = new, Time(new_t, format='unix').gps - self.start
+            seg_len = len(data) - first
+            segment = np.linspace(first_t, first_t + len(data)/np.float64(self.samp_rate), seg_len)
+            times = np.append(times, segment)
+        else:
+            times = np.linspace(0,len(data)/np.float64(samp_rate), len(data))+self.start
 
-        # Every time there's an overrun we need to restart the times
-        # at the point where the sampling was successfully restarted
-        # if len(overs) > 0:
-        #     last_seg_start = 0
-        #     last_seg_start_time = self.start
-        #     times = np.array([])
-        #     for over in overs:
-        #         seg_time = np.array(first/np.float(samp_rate), over['new_seg']/np.float64(samp_rate), over['new_seg'] - first)
-        #         times = np.append(times, seg_time)
-        #         first = over['rx_time']
-        #     # Don't forget the last segment!    
-        #     np.linspace(first/np.float(samp_rate),len(data)/np.float64(samp_rate), len(data) - first)
-                                            
-        times = np.linspace(0,len(data)/np.float64(samp_rate), len(data))
-                                            
+        self.times = times
         times = Time(times, format='gps', scale='tai')
-        dframe = pd.DataFrame({'total power':data})
+        dframe = pd.DataFrame({'total power':data}, index=times.value)
         self.import_data(dframe, meta, cts=times)
 
 
@@ -110,20 +117,9 @@ class TimeSeries(Lightcurve):
         extra_tags = []
 
         overs = []
-        
-        # try:
-        #    fd = open(head_file,'rb')
-        # except IOError:           
-        #    print "No header information available, will fall-back on keyword arguments"
-        #    return {'total power':{}}         
-           
-        # h_str = fd.read(hlen)
-        # h_pmt = pmt.deserialize_str(h_str)
-        # h_parsed=parse_file_metadata.parse_header(h_pmt,False)
-        # for i in h_parsed:
-        #     try:
-        #         h_parsed[i] = pmt.to_python(h_parsed[i])
-        #     except: pass
+
+        if not os.path.isfile(head_file):
+            return {'total power':{}}, []
 
         with open(head_file,'rb') as fd:
             for h_str in iter(partial(fd.read, hlen), ''):
@@ -147,16 +143,13 @@ class TimeSeries(Lightcurve):
         for i  in xrange(len(extra_tags)):
             j = int(nums_done + extra_tags[i]['nitems'])
             if not extra_tags[i]['rx_time'] == segment_start_time:
-                print "Over-run detected near datum number {}, in block {}".format(str(j), str(i))
+
                 should = segment_start_time + j/extra_tags[i]['rx_rate']
-                print "Should be at time {}".format(should)
-                print "Actually {}".format( extra_tags[i]['rx_time'] )
+
                 miss_sec = extra_tags[i]['rx_time']-should
-                print "There are {} seconds missing [{} samples]".format(miss_sec, (miss_sec*extra_tags[i]['rx_rate']))
+
                 overs.append({'new_seg':j, 'new_time':extra_tags[i]['rx_time']})
-                
-                #print (extra_tags[i]['rx_time'] - segment_start_time)*extra_tags[i]['rx_rate']
-                #print (extra_tags[i]['rx_time'] - segment_start_time + float(nums_done)/extra_tags[i]['rx_rate'])*extra_tags[i]['rx_rate']
+
                 segment_start_time = extra_tags[i]['rx_time']
                 segments += 1
             j = int(nums_done + extra_tags[i]['nitems'])
@@ -167,7 +160,7 @@ class TimeSeries(Lightcurve):
         return {'total power': headers[0]}, overs
 
 
-    def remove_outlier(lower=0, upper=1000, **kwargs):
+    def remove_outlier(self, lower=0, upper=1000, **kwargs):
         """
         Replace data with values less than `lower` and greater than `higher` with NANs.
 
@@ -186,13 +179,13 @@ class TimeSeries(Lightcurve):
 
         if "column" in kwargs:
             column = kwargs["column"]
-            dataw = np.array(data[column])
+            dataw = data[column].values
         else:
-            dataw = self.clc
+            dataw = data[self.default].values
         
-        dataw[dataw>upper] = np.nan
-        dataw[dataw<lower] = np.nan
-        
+        dataw[np.logical_or(dataw>upper, dataw<lower)] = np.nan
+        #dataw[dataw<lower] = np.nan
+        dataw = dataw - self._dcoffsets[self.default]
         
         if "column" in kwargs:
             column = kwargs['column']
@@ -206,7 +199,7 @@ class TimeSeries(Lightcurve):
             self.data = data
             return self
         else:
-            return new_object.denorm()
+            return new_object
 
     def homogen(self):
         data = self.data
@@ -265,18 +258,7 @@ class TimeSeries(Lightcurve):
         f =  f/self.doppler(v)
         return np.fft.ifft(f)
 
-    def correct_outliers(self, std=None, value=None):
-        """
-        Remove large outliers.
-        """
-        data = self.data_h
-        if not std==None:
-            data[data>3*np.nanstd(data)]=np.nan
-        elif not value==None:
-            data[data>value]=np.nan
-        return data
-
-    def get_f(time, ephemeris):
+    def get_f(self, time, ephemeris):
         """
         Returns the time, the pulsar frequency, 
         and the fractional difference between steps for a 
@@ -287,6 +269,29 @@ class TimeSeries(Lightcurve):
         f = np.interp(time, ephem[:,0], ephem[:,1])
         fdot = (np.interp(time, ephem[:,0], ephem[:,1]) - np.interp(time-hour, ephem[:,0], ephem[:,1]))/hour
         return time, f, fdot
+
+    def save(self, filepath, **kwargs):
+        """
+        Saves data out in binary format.
+
+        Parameters
+        ----------
+        filepath : str
+           The location of the file the data will be written to.
+        column : str
+           The column which should be written out
+        """
+        data = self.data
+        if "column" in kwargs:
+            column = kwargs['column']
+            dataw = data[column]
+        else:
+            dataw = data[self.default]
+        output = dataw.values
+        fd = open(filepath, 'wb')    
+        output.tofile(fd)
+        return self
+        
         
     def fold(self, ephemeris):
         """
@@ -439,62 +444,62 @@ class TimeSeries(Lightcurve):
         # Need to recalculate the time axis
         self.phase = np.linspace(0, period, np.shape(folded)[0])
 
-    def smooth(self):
-        """smooth the data using a window with requested size.
+    # def smooth(self):
+    #     """smooth the data using a window with requested size.
 
-        This method is based on the convolution of a scaled window with the signal.
-        The signal is prepared by introducing reflected copies of the signal 
-        (with the window size) in both ends so that transient parts are minimized
-        in the begining and end part of the output signal.
+    #     This method is based on the convolution of a scaled window with the signal.
+    #     The signal is prepared by introducing reflected copies of the signal 
+    #     (with the window size) in both ends so that transient parts are minimized
+    #     in the begining and end part of the output signal.
 
-        input:
-            x: the input signal 
-            window_len: the dimension of the smoothing window; should be an odd integer
-            window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-                flat window will produce a moving average smoothing.
+    #     input:
+    #         x: the input signal 
+    #         window_len: the dimension of the smoothing window; should be an odd integer
+    #         window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+    #             flat window will produce a moving average smoothing.
 
-        output:
-            the smoothed signal
+    #     output:
+    #         the smoothed signal
 
-        example:
+    #     example:
 
-        t=linspace(-2,2,0.1)
-        x=sin(t)+randn(len(t))*0.1
-        y=smooth(x)
+    #     t=linspace(-2,2,0.1)
+    #     x=sin(t)+randn(len(t))*0.1
+    #     y=smooth(x)
 
-        see also: 
+    #     see also: 
 
-        numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
-        scipy.signal.lfilter
+    #     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    #     scipy.signal.lfilter
 
-        TODO: the window parameter could be the window itself if an array instead of a string
-        NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
-        """
+    #     TODO: the window parameter could be the window itself if an array instead of a string
+    #     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    #     """
 
-        window_len = self.smoothing
-        window = self.window
-        x = self.data
-        if x.ndim != 1:
-            raise ValueError, "smooth only accepts 1 dimension arrays."
+    #     window_len = self.smoothing
+    #     window = self.window
+    #     x = self.data
+    #     if x.ndim != 1:
+    #         raise ValueError, "smooth only accepts 1 dimension arrays."
 
-        if x.size < window_len:
-            raise ValueError, "Input vector needs to be bigger than window size."
-
-
-        if window_len<3:
-            return x
+    #     if x.size < window_len:
+    #         raise ValueError, "Input vector needs to be bigger than window size."
 
 
-        if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-            raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+    #     if window_len<3:
+    #         return x
 
 
-        s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
-        #print(len(s))
-        if window == 'flat': #moving average
-            w=np.ones(window_len,'d')
-        else:
-            w=eval('np.'+window+'(window_len)')
+    #     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+    #         raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
 
-        y=np.convolve(w/w.sum(),s,mode='valid')
-        return y[(window_len-1)/2:-(window_len-1)/2]
+
+    #     s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+    #     #print(len(s))
+    #     if window == 'flat': #moving average
+    #         w=np.ones(window_len,'d')
+    #     else:
+    #         w=eval('np.'+window+'(window_len)')
+
+    #     y=np.convolve(w/w.sum(),s,mode='valid')
+    #     return y[(window_len-1)/2:-(window_len-1)/2]
