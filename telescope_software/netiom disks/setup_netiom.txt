@@ -1,0 +1,4 @@
+C:\Documents and Settings\Graham\My Documents\My Dropbox\pulsar telescope\netiom web server files\analoguelinputs.cgi
+C:\Documents and Settings\Graham\My Documents\My Dropbox\pulsar telescope\netiom web server files\digitalinputs.cgi
+C:\Documents and Settings\Graham\My Documents\My Dropbox\pulsar telescope\netiom web server files\digitaloutputs.cgi
+C:\Documents and Settings\Graham\My Documents\My Dropbox\pulsar telescope\netiom web server files\index.htm
